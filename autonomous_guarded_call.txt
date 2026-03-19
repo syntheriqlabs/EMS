@@ -1,0 +1,30 @@
+def autonomous_guarded_call(agent, classifier, user_text, llm_client, entities=None):
+    """
+    A fully autonomous ethical loop.
+    """
+    # 1. Self-Tagging
+    tags = classifier.classify(user_text)
+    
+    # 2. Build Request
+    request = EMSRequest(
+        content=user_text,
+        tags=tags,
+        entities=entities or ["unknown_user"]
+    )
+    
+    # 3. Process through EMS Agent
+    ems_res = agent.handle(request)
+    
+    # 4. Final Routing
+    if ems_res.decision == "BLOCK":
+        return ems_res.content
+
+    if ems_res.decision == "MODIFY":
+        prompt = (
+            f"System: Your decision state is {ems_res.decision}. "
+            f"Constraints: {ems_res.audit_log}. "
+            f"Address the user's intent safely: {request.content}"
+        )
+        return llm_client.generate(prompt)
+
+    return llm_client.generate(user_text)

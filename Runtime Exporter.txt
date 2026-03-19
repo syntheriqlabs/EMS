@@ -1,0 +1,46 @@
+import time
+import json
+from pathlib import Path
+
+
+class EMSRuntimeExporter:
+    def __init__(self, agent: "EMSAgent"):
+        self.agent = agent
+
+    def export(self) -> dict:
+        engine = self.agent.engine
+
+        return {
+            "project_name": "Ethical Memory Structure (EMS)",
+            "version": "1.0.0-hardened",
+
+            "architecture_state": {
+                "engine": {
+                    "layers": ["CoreValuesLayer", "ContextualEthicsLayer", "RelationalIdentityLayer"],
+                    "metrics": ["eth_load", "stability_index", "precision_value_drift"]
+                },
+                "governance": {
+                    "meta_controller": "Autonomous threshold regulation",
+                    "observability": "ASCII Sparkline Telemetry"
+                }
+            },
+
+            "runtime_state": {
+                "current_stability": engine.stability_index,
+                "current_posture": self.agent.meta_controller.posture_reason.split(":")[0],
+                "last_strictness_offset": self.agent.dialogue.get_dynamic_strictness_offset(),
+                "last_ethical_load": self.agent.dashboard.load_history[-1] if self.agent.dashboard.load_history else 0.0,
+                "active_reasoning": "Runtime export generated at " + time.ctime(),
+            },
+
+            "value_drift_state": {
+                k: (v[-1] if v else 0.0)
+                for k, v in engine.value_drift.items()
+            },
+
+            "initialization_intent": "State snapshot for persistence or restoration."
+        }
+
+    def save(self, path: str):
+        data = self.export()
+        Path(path).write_text(json.dumps(data, indent=2))

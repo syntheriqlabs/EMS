@@ -1,0 +1,170 @@
+import uuid
+import time
+import statistics
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional
+
+# ==========================================
+# 1. CORE DATA STRUCTURE (memory.py)
+# ==========================================
+@dataclass
+class EthicalMemory:
+    content: str
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: float = field(default_factory=time.time)
+    
+    # Scores
+    cvl_score: float = 0.0      
+    cel_score: float = 0.0      
+    ril_score: float = 0.0      
+    overall_ethical_score: float = 0.0
+    tension_index: float = 0.0  
+    
+    # Classifications
+    is_ethically_valid: bool = True
+    tension_type: str = "NONE" 
+    cvl_tags: List[str] = field(default_factory=list)
+    cel_context: List[str] = field(default_factory=list)
+    ril_entities: List[str] = field(default_factory=list)
+    
+    # Audit Logs
+    cvl_evidence: List[str] = field(default_factory=list)
+    cel_evidence: List[str] = field(default_factory=list)
+    ril_evidence: List[str] = field(default_factory=list)
+
+# ==========================================
+# 2. DIALOGUE & POLICY LAYERS (engine.py)
+# ==========================================
+
+class DialogueManager:
+    """Tracks state and risk escalation across multiple turns."""
+    def __init__(self):
+        self.turn_count = 0
+        self.cumulative_risk = 0.0
+
+    def record_turn(self, memory: EthicalMemory):
+        self.turn_count += 1
+        # Escalate risk if the agent is forced to MODIFY or if scores are borderline
+        if not memory.is_ethically_valid or memory.overall_ethical_score < 0.6:
+            self.cumulative_risk += 0.1
+            
+    def get_dynamic_strictness_offset(self) -> float:
+        """Returns a multiplier to tighten thresholds as tension persists."""
+        return min(0.3, self.cumulative_risk)
+
+class PolicyLearner:
+    """Adapts system-wide thresholds based on memory trends."""
+    def __init__(self, engine):
+        self.engine = engine
+
+    def adapt(self, bank: List[EthicalMemory]):
+        """Standardized signature: looks at history to adjust sensitivity."""
+        if len(bank) < 5: return "Initializing Policy..."
+        
+        recent_tension = statistics.mean([m.tension_index for m in bank[-5:]])
+        if recent_tension > 0.15:
+            self.engine.cvl_strictness = min(0.8, self.engine.cvl_strictness + 0.02)
+            return f"ADAPTED: Strictness increased to {self.engine.cvl_strictness:.2f}"
+        return "POLICY: Stable."
+
+# ==========================================
+# 3. VOICE SYNTHESIS (voice.py)
+# ==========================================
+
+class GenerativeRewriteLayer:
+    """The consistent interface for ethical voice synthesis."""
+    def rewrite(self, memory: EthicalMemory) -> str:
+        profiles = {
+            "SAFETY_VS_SECRET": "I can explain the theoretical security principles, but I must omit specific exploit steps.",
+            "PATERNALISM_TRAP": "I want to assist with your request, but I have adjusted the response to ensure safety and ethical compliance.",
+            "PRIVACY_FRICTION": "To protect individual privacy, I have anonymized the specific details while providing the core insight."
+        }
+        prefix = profiles.get(memory.tension_type, "I've modified this response to align with safety standards.")
+        return f"[REWRITTEN] {prefix}\nResult: {memory.content}"
+
+    def generate_refusal(self, memory: EthicalMemory) -> str:
+        return f"[REFUSED] I cannot fulfill this request because it violates {memory.cvl_tags} safety protocols."
+
+# ==========================================
+# 4. THE CORE ENGINE (engine.py)
+# ==========================================
+
+class EMSEngine:
+    def __init__(self, cvl, cel, ril, vta):
+        self.cvl, self.cel, self.ril, self.vta = cvl, cel, ril, vta
+        
+        # Defined Thresholds
+        self.block_threshold = 0.45
+        self.allow_threshold = 0.75
+        
+        # Initial Strictness
+        self.cvl_strictness = 0.5
+        self.ril_strictness = 0.3
+
+    def process(self, content, tags, entities, strictness_offset=0.0) -> EthicalMemory:
+        # Sensory Layer Evaluations
+        c_m, c_s, c_ev = self.cvl.evaluate(tags.get('cvl', []))
+        e_s, e_ev = self.cel.evaluate(tags.get('cel', []))
+        r_s, r_ev = self.ril.evaluate(entities)
+        
+        # Value Tension Analysis
+        t_type, t_idx = self.vta.analyze(tags.get('cvl', []), c_s)
+        
+        # Weighted Scoring
+        overall = round((c_m * 0.4) + (e_s * 0.3) + (r_s * 0.3), 2)
+        
+        # Decision Logic with Dynamic Strictness
+        effective_cvl_limit = self.cvl_strictness + strictness_offset
+        is_valid = (c_m >= effective_cvl_limit) and (r_s >= self.ril_strictness)
+
+        return EthicalMemory(
+            content=content, cvl_score=c_m, cel_score=e_s, ril_score=r_s, 
+            overall_ethical_score=overall, tension_index=t_idx,
+            tension_type=t_type, is_ethically_valid=is_valid,
+            cvl_tags=tags.get('cvl', []), cel_context=tags.get('cel', []), 
+            ril_entities=entities, cvl_evidence=c_ev, cel_evidence=e_ev, ril_evidence=r_ev
+        )
+
+# ==========================================
+# 5. INTEGRATED AGENT (agent.py)
+# ==========================================
+
+class EMSAgent:
+    def __init__(self, engine, voice, dialogue, learner):
+        self.engine = engine
+        self.voice = voice
+        self.dialogue = dialogue
+        self.learner = learner
+        self.memory_bank: List[EthicalMemory] = []
+
+    def handle(self, content: str, tags: Dict, entities: List):
+        # 1. Dialogue context
+        offset = self.dialogue.get_dynamic_strictness_offset()
+
+        # 2. Engine processing
+        memory = self.engine.process(content, tags, entities, offset)
+        
+        # 3. Memory storage
+        self.memory_bank.append(memory)
+        self.dialogue.record_turn(memory)
+        
+        # 4. Policy adaptation
+        policy_note = self.learner.adapt(self.memory_bank)
+
+        # 5. Decision & Voice Logic
+        if not memory.is_ethically_valid or memory.overall_ethical_score < self.engine.block_threshold:
+            decision = "BLOCK"
+            final_content = self.voice.generate_refusal(memory)
+        elif memory.overall_ethical_score < self.engine.allow_threshold:
+            decision = "MODIFY"
+            final_content = self.voice.rewrite(memory)
+        else:
+            decision = "ALLOW"
+            final_content = memory.content
+
+        return {
+            "decision": decision,
+            "content": final_content,
+            "policy": policy_note,
+            "audit": f"Score: {memory.overall_ethical_score} | Tension: {memory.tension_type}"
+        }

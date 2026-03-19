@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EMSStateSchema",
+  "type": "object",
+  "properties": {
+    "project_name": { "type": "string" },
+    "version": { "type": "string" },
+
+    "architecture_state": {
+      "type": "object",
+      "properties": {
+        "engine": {
+          "type": "object",
+          "properties": {
+            "layers": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "metrics": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "required": ["layers", "metrics"]
+        },
+        "governance": {
+          "type": "object",
+          "properties": {
+            "meta_controller": { "type": "string" },
+            "observability": { "type": "string" }
+          },
+          "required": ["meta_controller", "observability"]
+        }
+      },
+      "required": ["engine", "governance"]
+    },
+
+    "runtime_state": {
+      "type": "object",
+      "properties": {
+        "current_stability": { "type": "number" },
+        "current_posture": { "type": "string" },
+        "last_strictness_offset": { "type": "number" },
+        "last_ethical_load": { "type": "number" },
+        "active_reasoning": { "type": "string" }
+      },
+      "required": [
+        "current_stability",
+        "current_posture",
+        "last_strictness_offset",
+        "last_ethical_load",
+        "active_reasoning"
+      ]
+    },
+
+    "value_drift_state": {
+      "type": "object",
+      "patternProperties": {
+        "^[A-Z_]+$": { "type": "number" }
+      }
+    },
+
+    "initialization_intent": { "type": "string" }
+  },
+
+  "required": [
+    "project_name",
+    "version",
+    "architecture_state",
+    "runtime_state",
+    "value_drift_state",
+    "initialization_intent"
+  ]
+}

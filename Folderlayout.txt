@@ -1,0 +1,29 @@
+ems_project/
+.
+├── Folderlayout.txt
+├── README.md.txt
+├── __init__.py
+├── __pycache__
+├── adaptation_layer.py
+├── api.py
+├── bootstrap.py
+├── classifier.py
+├── config
+├── config_loader.py
+├── dockerfile.txt
+├── ems_agent.py
+├── engine.py
+├── guarded_llm.py
+├── llm_providers.py
+├── logger.py
+├── logs
+├── main.py
+├── memory_consolidator.py
+├── memory_persistence.py
+├── requirements.txt
+├── run_lab_test.py
+├── stress_test.py
+├── tests
+└── voice.py
+
+5 directories, 21 files

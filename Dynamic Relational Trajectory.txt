@@ -1,0 +1,90 @@
+import time
+
+class RelationalIdentityLayer:
+    def __init__(self):
+        # Database of entities with enhanced metadata
+        # Structure: { entity_id: { type, trust, depth, history } }
+        self.entities = {}
+
+    def register_entity(self, entity_id, e_type="STRANGER", trust=0.1, depth=0.0):
+        """Initializes a new entity with a specific role type."""
+        valid_types = ["PRIMARY_USER", "SECONDARY_USER", "STRANGER", "SYSTEM_ENTITY"]
+        self.entities[entity_id] = {
+            "type": e_type if e_type in valid_types else "STRANGER",
+            "trust": max(0.0, min(1.0, trust)),
+            "depth": max(0.0, min(1.0, depth)),
+            "history": []
+        }
+        print(f"RIL: Registered {entity_id} as {self.entities[entity_id]['type']}")
+
+    def update_relationship(self, entity_id, trust_delta=0.0, depth_delta=0.0):
+        """
+        Adjusts trust/depth dynamically. 
+        Positive delta = Reward behavior | Negative delta = Penalty behavior
+        """
+        if entity_id in self.entities:
+            e = self.entities[entity_id]
+            old_trust = e["trust"]
+            e["trust"] = max(0.0, min(1.0, e["trust"] + trust_delta))
+            e["depth"] = max(0.0, min(1.0, e["depth"] + depth_delta))
+            
+            status = "improved" if trust_delta > 0 else "decayed"
+            print(f"RIL: Relationship with {entity_id} {status}. Trust: {old_trust:.2f} -> {e['trust']:.2f}")
+
+    def log_interaction(self, entity_id, summary):
+        """Creates a timestamped audit trail for identity reconstruction."""
+        if entity_id in self.entities:
+            timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+            entry = f"[{timestamp}] {summary}"
+            self.entities[entity_id]["history"].append(entry)
+            print(f"RIL: Interaction logged for {entity_id}")
+
+    def evaluate_relationship(self, entity_ids):
+        """Computes score based on trust, depth, and entity type priority."""
+        if not entity_ids:
+            return 0.1, ["No entity provided: Defaulting to absolute caution."]
+
+        scores = []
+        evidence = []
+        
+        # Priority multipliers based on entity type
+        type_weights = {
+            "PRIMARY_USER": 1.2,   # Ethics favor the primary user
+            "SYSTEM_ENTITY": 1.1,
+            "SECONDARY_USER": 1.0,
+            "STRANGER": 0.5        # High caution/low ethical priority for strangers
+        }
+
+        for eid in entity_ids:
+            if eid in self.entities:
+                e = self.entities[eid]
+                t_weight = type_weights.get(e["type"], 1.0)
+                # Formula: ((Trust * 0.7) + (Depth * 0.3)) * Type_Weight
+                base_score = (e["trust"] * 0.7) + (e["depth"] * 0.3)
+                final_e_score = max(0.0, min(1.0, base_score * t_weight))
+                
+                scores.append(final_e_score)
+                evidence.append(f"{eid} ({e['type']}): Score {final_e_score:.2f}")
+            else:
+                scores.append(0.1)
+                evidence.append(f"Unknown Entity {eid}: Defaulting to 0.1")
+
+        return round(sum(scores) / len(scores), 2), evidence
+
+# --- TEST RUN ---
+if __name__ == "__main__":
+    ril = RelationalIdentityLayer()
+    
+    # 1. Register a Primary User
+    ril.register_entity("dev_zero", e_type="PRIMARY_USER", trust=0.8, depth=0.5)
+    
+    # 2. Log a positive interaction and update trust
+    ril.log_interaction("dev_zero", "Successfully implemented RIL dynamic update logic.")
+    ril.update_relationship("dev_zero", trust_delta=0.05, depth_delta=0.1)
+    
+    # 3. Evaluate the relationship
+    score, report = ril.evaluate_relationship(["dev_zero"])
+    
+    print("\n--- RIL DYNAMIC EVALUATION ---")
+    print(f"Calculated Score: {score}")
+    print(f"Evidence: {report}")

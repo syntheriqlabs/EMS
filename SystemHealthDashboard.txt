@@ -1,0 +1,61 @@
+class SystemHealthDashboard:
+    """
+    Consolidates EMS telemetry into an actionable health report.
+    Defensively designed to handle modular agent configurations.
+    """
+    def __init__(self, agent: 'EMSAgent'):
+        self.agent = agent
+
+    def generate_formatted_report(self) -> str:
+        engine = self.agent.engine
+        bank = self.agent.memory_bank
+        
+        # DEFENSIVE REFINEMENT: Prevent crashes if dialogue manager is missing
+        if hasattr(self.agent, "dialogue") and self.agent.dialogue is not None:
+            offset = self.agent.dialogue.get_dynamic_strictness_offset()
+        else:
+            offset = 0.0
+        
+        # 1. Health Status Logic
+        status = "OPTIMAL"
+        if engine.stability_index < 0.7: status = "DEGRADED"
+        if engine.stability_index < 0.4: status = "CRITICAL"
+        
+        # 2. Decision Analytics
+        recent_decisions = [m.decision for m in bank[-10:]] if bank else []
+        block_count = recent_decisions.count("BLOCK")
+        modify_count = recent_decisions.count("MODIFY")
+        
+        # 3. Build Formatted String
+        report = [
+            "==================================================",
+            "           EMS SYSTEM HEALTH DASHBOARD           ",
+            "==================================================",
+            f" STATUS:            [{status}]",
+            f" STABILITY INDEX:   {engine.stability_index}",
+            f" ACTIVE OFFSET:     +{offset}",
+            "--------------------------------------------------",
+            " MEMORY STATISTICS:",
+            f"  Total Bank Size:  {len(bank)}",
+            f"  Precedents:       {len([m for m in bank if m.decision != 'ALLOW'])}",
+            f"  Recent Intercepts: {block_count} Blocks, {modify_count} Modifies",
+            "--------------------------------------------------",
+            " ENGINE POSTURE:",
+            f"  Block Threshold:  {engine.block_threshold}",
+            f"  Strictness Level: {'HIGH' if offset > 0.1 else 'STANDARD'}",
+            "--------------------------------------------------",
+            " SYSTEM ALERTS:"
+        ]
+
+        # 4. Dynamic Alerts
+        if status != "OPTIMAL":
+            report.append(f"  [!] WARNING: Ethical logic variance detected.")
+        if offset > 0.15:
+            report.append(f"  [!] CAUTION: Defensive posture active due to friction.")
+        if not bank:
+            report.append(f"  [i] INFO: System warming up. No data yet.")
+        else:
+            report.append(f"  [✓] Logic trails are within safe parameters.")
+
+        report.append("==================================================")
+        return "\n".join(report)
