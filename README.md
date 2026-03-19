@@ -1,3 +1,8 @@
+I am not an expert coder but know the in and outs of it. I have used AI to help me with most of the code. I am the Origin of the novel Concept that came up with the idea and worked on it with AI. 
+I would really love feedback about the ide and the code.
+Thank you all in advance!
+
+
 I. Philosophical Foundations
 The EMS is built on Pluralistic Deontology. Rather than following a single rule, it balances four competing Core Values (CVL):
 •	Non-Maleficence: Prevention of harm.
